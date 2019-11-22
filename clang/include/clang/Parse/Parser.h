@@ -1679,7 +1679,7 @@ private:
   bool isPostfixExpressionSuffixStart() {
     tok::TokenKind K = Tok.getKind();
     return (K == tok::l_square || K == tok::l_paren ||
-            K == tok::period || K == tok::arrow ||
+            K == tok::period || K == tok::arrow || K == tok::pizza ||
             K == tok::plusplus || K == tok::minusminus);
   }
 

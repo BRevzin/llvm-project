@@ -559,7 +559,7 @@ class CastExpressionIdValidator final : public CorrectionCandidateCallback {
     if (!AllowNonTypes || !CorrectionCandidateCallback::ValidateCandidate(candidate))
       return false;
 
-    if (!NextToken.isOneOf(tok::equal, tok::arrow, tok::period))
+    if (!NextToken.isOneOf(tok::equal, tok::arrow, tok::period, tok::pizza))
       return true;
 
     for (auto *C : candidate) {
@@ -1528,6 +1528,8 @@ Parser::ParsePostfixExpressionSuffix(ExprResult LHS) {
   // parsed, see if there are any postfix-expression pieces here.
   SourceLocation Loc;
   auto SavedType = PreferredType;
+  Expr* FirstArg = nullptr;
+
   while (1) {
     // Each iteration relies on preferred type for the whole expression.
     PreferredType = SavedType;
@@ -1678,6 +1680,10 @@ Parser::ParsePostfixExpressionSuffix(ExprResult LHS) {
       }
 
       ExprVector ArgExprs;
+      if (FirstArg) {
+        ArgExprs.push_back(FirstArg);
+      }
+
       CommaLocsTy CommaLocs;
       auto RunSignatureHelp = [&]() -> QualType {
         QualType PreferredType = Actions.ProduceCallSignatureHelp(
@@ -1734,6 +1740,19 @@ Parser::ParsePostfixExpressionSuffix(ExprResult LHS) {
         PT.consumeClose();
       }
 
+      break;
+    }
+    case tok::pizza: {
+      // postfix-expression: p-e '|>' id-expression ( expression-list[opt] )
+      SourceLocation OpLoc = ConsumeToken(); // Eat the "|>" token.
+
+      ExprResult Call = ParseCXXIdExpression(false);
+      if (!Tok.is(tok::l_paren)) {
+        Diag(OpLoc, diag::err_expected_lparen_after) << "id-expression";
+        return ParsePostfixExpressionSuffix(LHS);
+      }
+      FirstArg = !LHS.isInvalid() ? LHS.get() : nullptr;
+      LHS = Call;
       break;
     }
     case tok::arrow:
