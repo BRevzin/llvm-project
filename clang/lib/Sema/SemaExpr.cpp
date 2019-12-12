@@ -2167,7 +2167,8 @@ Sema::ActOnIdExpression(Scope *S, CXXScopeSpec &SS,
                         SourceLocation TemplateKWLoc, UnqualifiedId &Id,
                         bool HasTrailingLParen, bool IsAddressOfOperand,
                         CorrectionCandidateCallback *CCC,
-                        bool IsInlineAsmIdentifier, Token *KeywordReplacement) {
+                        bool IsInlineAsmIdentifier, Token *KeywordReplacement,
+                        bool IsPizzaOperand) {
   assert(!(IsAddressOfOperand && HasTrailingLParen) &&
          "cannot be direct & operand and have a trailing lparen");
   if (SS.isInvalid())
@@ -2274,7 +2275,7 @@ Sema::ActOnIdExpression(Scope *S, CXXScopeSpec &SS,
 
   // Determine whether this name might be a candidate for
   // argument-dependent lookup.
-  bool ADL = UseArgumentDependentLookup(SS, R, HasTrailingLParen);
+  bool ADL = UseArgumentDependentLookup(SS, R, HasTrailingLParen || IsPizzaOperand);
 
   if (R.empty() && !ADL) {
     if (SS.isEmpty() && getLangOpts().MSVCCompat) {

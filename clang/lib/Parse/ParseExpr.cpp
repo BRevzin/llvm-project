@@ -849,7 +849,7 @@ ExprResult Parser::ParseCastExpression(bool isUnaryExpression,
   case tok::annot_non_type_undeclared: {
     CXXScopeSpec SS;
     Token Replacement;
-    Res = tryParseCXXIdExpression(SS, isAddressOfOperand, Replacement);
+    Res = tryParseCXXIdExpression(SS, isAddressOfOperand, false, Replacement);
     assert(!Res.isUnset() &&
            "should not perform typo correction on annotation token");
     break;
@@ -1731,9 +1731,12 @@ Parser::ParsePostfixExpressionSuffix(ExprResult LHS) {
           PT.consumeClose();
         LHS = ExprError();
       } else {
-        assert((ArgExprs.size() == 0 ||
-                ArgExprs.size()-1 == CommaLocs.size())&&
+#ifndef NDEBUG
+        size_t SizeWithoutFirst = ArgExprs.size() - (FirstArg ? 1 : 0);
+        assert((SizeWithoutFirst == 0 ||
+                SizeWithoutFirst-1 == CommaLocs.size())&&
                "Unexpected number of commas!");
+#endif
         LHS = Actions.ActOnCallExpr(getCurScope(), LHS.get(), Loc,
                                     ArgExprs, Tok.getLocation(),
                                     ExecConfig);
@@ -1744,15 +1747,22 @@ Parser::ParsePostfixExpressionSuffix(ExprResult LHS) {
     }
     case tok::pizza: {
       // postfix-expression: p-e '|>' id-expression ( expression-list[opt] )
+      //                     p-e '|>' id-expression
       SourceLocation OpLoc = ConsumeToken(); // Eat the "|>" token.
 
-      ExprResult Call = ParseCXXIdExpression(false);
-      if (!Tok.is(tok::l_paren)) {
-        Diag(OpLoc, diag::err_expected_lparen_after) << "id-expression";
-        return ParsePostfixExpressionSuffix(LHS);
+      ExprResult Call = ParseCXXIdExpression(/*isAddressOfOperand=*/false,
+                                             /*isPizzaOperand=*/true);
+
+      if (!LHS.isInvalid()) {
+        if (!Tok.is(tok::l_paren)) { // evaluate x |> f as f(x)
+          ExprVector ArgExprs = {LHS.get()};
+          LHS = Actions.ActOnCallExpr(getCurScope(), Call.get(), OpLoc,
+                                      ArgExprs, Tok.getLocation(), nullptr);
+        } else {
+          FirstArg = LHS.get();
+          LHS = Call;
+        }
       }
-      FirstArg = !LHS.isInvalid() ? LHS.get() : nullptr;
-      LHS = Call;
       break;
     }
     case tok::arrow:

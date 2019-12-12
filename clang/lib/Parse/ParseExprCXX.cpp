@@ -554,6 +554,7 @@ bool Parser::ParseOptionalCXXScopeSpecifier(
 
 ExprResult Parser::tryParseCXXIdExpression(CXXScopeSpec &SS,
                                            bool isAddressOfOperand,
+                                           bool isPizzaOperand,
                                            Token &Replacement) {
   ExprResult E;
 
@@ -607,8 +608,9 @@ ExprResult Parser::tryParseCXXIdExpression(CXXScopeSpec &SS,
 
     E = Actions.ActOnIdExpression(
         getCurScope(), SS, TemplateKWLoc, Name, Tok.is(tok::l_paren),
-        isAddressOfOperand, /*CCC=*/nullptr, /*IsInlineAsmIdentifier=*/false,
-        &Replacement);
+        isAddressOfOperand,
+        /*CCC=*/nullptr, /*IsInlineAsmIdentifier=*/false,
+        &Replacement, isPizzaOperand);
     break;
   }
 
@@ -659,7 +661,7 @@ ExprResult Parser::tryParseCXXIdExpression(CXXScopeSpec &SS,
 /// the only place where a qualified-id naming a non-static class member may
 /// appear.
 ///
-ExprResult Parser::ParseCXXIdExpression(bool isAddressOfOperand) {
+ExprResult Parser::ParseCXXIdExpression(bool isAddressOfOperand, bool isPizzaOperand) {
   // qualified-id:
   //   '::'[opt] nested-name-specifier 'template'[opt] unqualified-id
   //   '::' unqualified-id
@@ -669,12 +671,12 @@ ExprResult Parser::ParseCXXIdExpression(bool isAddressOfOperand) {
 
   Token Replacement;
   ExprResult Result =
-      tryParseCXXIdExpression(SS, isAddressOfOperand, Replacement);
+      tryParseCXXIdExpression(SS, isAddressOfOperand, isPizzaOperand, Replacement);
   if (Result.isUnset()) {
     // If the ExprResult is valid but null, then typo correction suggested a
     // keyword replacement that needs to be reparsed.
     UnconsumeToken(Replacement);
-    Result = tryParseCXXIdExpression(SS, isAddressOfOperand, Replacement);
+    Result = tryParseCXXIdExpression(SS, isAddressOfOperand, isPizzaOperand, Replacement);
   }
   assert(!Result.isUnset() && "Typo correction suggested a keyword replacement "
                               "for a previous keyword suggestion");

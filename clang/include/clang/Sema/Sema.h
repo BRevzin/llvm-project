@@ -4508,7 +4508,8 @@ public:
       Scope *S, CXXScopeSpec &SS, SourceLocation TemplateKWLoc,
       UnqualifiedId &Id, bool HasTrailingLParen, bool IsAddressOfOperand,
       CorrectionCandidateCallback *CCC = nullptr,
-      bool IsInlineAsmIdentifier = false, Token *KeywordReplacement = nullptr);
+      bool IsInlineAsmIdentifier = false, Token *KeywordReplacement = nullptr,
+      bool IsPizzaOperand = false);
 
   void DecomposeUnqualifiedId(const UnqualifiedId &Id,
                               TemplateArgumentListInfo &Buffer,
