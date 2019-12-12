@@ -1748,12 +1748,23 @@ Parser::ParsePostfixExpressionSuffix(ExprResult LHS) {
     case tok::pizza: {
       // postfix-expression: p-e '|>' id-expression ( expression-list[opt] )[opt]
       //                     p-e '|>' lambda-expression ( expression-list[opt] )[opt]
+      //                     p-e '|>' ( expression ) ( expression-list[opt] )[opt]
       SourceLocation OpLoc = ConsumeToken(); // Eat the "|>" token.
 
       ExprResult Call = [&]{
         switch (Tok.getKind()) {
         case tok::l_square:
           return TryParseLambdaExpression();
+        case tok::l_paren: {
+          ParenParseOption ExprType = SimpleExpr;
+          ParsedType CastTy;
+          SourceLocation RParenLoc;
+          ExprResult Primary = ParseParenExpression(ExprType, true, false, CastTy, RParenLoc);
+          if (ExprType == CastExpr) {
+            return ExprEmpty();
+          }
+          return Primary;
+        }
         default:
           return ParseCXXIdExpression(/*isAddressOfOperand=*/false,
                                       /*isPizzaOperand=*/true);
