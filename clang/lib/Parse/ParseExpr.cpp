@@ -1746,19 +1746,28 @@ Parser::ParsePostfixExpressionSuffix(ExprResult LHS) {
       break;
     }
     case tok::pizza: {
-      // postfix-expression: p-e '|>' id-expression ( expression-list[opt] )
-      //                     p-e '|>' id-expression
+      // postfix-expression: p-e '|>' id-expression ( expression-list[opt] )[opt]
+      //                     p-e '|>' lambda-expression ( expression-list[opt] )[opt]
       SourceLocation OpLoc = ConsumeToken(); // Eat the "|>" token.
 
-      ExprResult Call = ParseCXXIdExpression(/*isAddressOfOperand=*/false,
-                                             /*isPizzaOperand=*/true);
+      ExprResult Call = [&]{
+        switch (Tok.getKind()) {
+        case tok::l_square:
+          return TryParseLambdaExpression();
+        default:
+          return ParseCXXIdExpression(/*isAddressOfOperand=*/false,
+                                      /*isPizzaOperand=*/true);
+        }
+      }();
 
-      if (!LHS.isInvalid()) {
+      if (!LHS.isInvalid() && !Call.isInvalid()) {
         if (!Tok.is(tok::l_paren)) { // evaluate x |> f as f(x)
           ExprVector ArgExprs = {LHS.get()};
           LHS = Actions.ActOnCallExpr(getCurScope(), Call.get(), OpLoc,
                                       ArgExprs, Tok.getLocation(), nullptr);
         } else {
+          // we do have a paren, so we might have additional arguments
+          // defer to the actual postfix call parsing
           FirstArg = LHS.get();
           LHS = Call;
         }
