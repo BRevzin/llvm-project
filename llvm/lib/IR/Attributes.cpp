@@ -1815,7 +1815,7 @@ bool AttrBuilder::hasAlignmentAttr() const {
   return Alignment != 0;
 }
 
-bool AttrBuilder::operator==(const AttrBuilder &B) {
+bool AttrBuilder::operator==(const AttrBuilder &B) const {
   if (Attrs != B.Attrs)
     return false;
 
