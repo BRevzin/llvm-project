@@ -142,6 +142,12 @@ public:
     return tmp;
   }
 
+#ifndef __cpp_impl_three_way_comparison
+  bool operator!=(const DerivedT &RHS) const {
+    return !(static_cast<const DerivedT &>(*this) == RHS);
+  }
+#endif
+
   bool operator>(const DerivedT &RHS) const {
     static_assert(
         IsRandomAccess,
@@ -259,10 +265,6 @@ public:
   friend bool operator==(const iterator_adaptor_base &LHS,
                          const iterator_adaptor_base &RHS) {
     return LHS.I == RHS.I;
-  }
-  friend bool operator!=(const iterator_adaptor_base &LHS,
-                         const iterator_adaptor_base &RHS) {
-    return !(LHS == RHS);
   }
   friend bool operator<(const iterator_adaptor_base &LHS,
                         const iterator_adaptor_base &RHS) {
