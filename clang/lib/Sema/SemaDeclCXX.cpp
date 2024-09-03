@@ -9338,7 +9338,7 @@ bool SpecialMemberDeletionInfo::shouldDeleteForSubobjectCall(
 
   if (SMOR.getKind() == Sema::SpecialMemberOverloadResult::NoMemberOrDeleted) {
     if (!(Field && Field->getParent()->isUnion() && CSM == CXXSpecialMemberKind::DefaultConstructor)) {
-      // P3074, default ctor and dtor are not deleted
+      // P3074, default ctor for unions is not deleted
       DiagKind = !Decl ? 0 : 1;
     }
   }
@@ -9349,7 +9349,7 @@ bool SpecialMemberDeletionInfo::shouldDeleteForSubobjectCall(
   else if (!IsDtorCallInCtor && Field && Field->getParent()->isUnion() &&
            !Decl->isTrivial()) {
     if (!(CSM == CXXSpecialMemberKind::DefaultConstructor || CSM == CXXSpecialMemberKind::Destructor)) {
-      // P3074, default ctor and dtor are not deleted
+      // P3074, default ctor and dtor for unions are not deleted
       DiagKind = 4;
     }
   }
