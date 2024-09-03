@@ -42,6 +42,7 @@
 #include "clang/Sema/ParsedTemplate.h"
 #include "clang/Sema/Scope.h"
 #include "clang/Sema/ScopeInfo.h"
+#include "clang/Sema/Sema.h"
 #include "clang/Sema/SemaCUDA.h"
 #include "clang/Sema/SemaInternal.h"
 #include "clang/Sema/SemaObjC.h"
@@ -9335,8 +9336,12 @@ bool SpecialMemberDeletionInfo::shouldDeleteForSubobjectCall(
 
   int DiagKind = -1;
 
-  if (SMOR.getKind() == Sema::SpecialMemberOverloadResult::NoMemberOrDeleted)
-    DiagKind = !Decl ? 0 : 1;
+  if (SMOR.getKind() == Sema::SpecialMemberOverloadResult::NoMemberOrDeleted) {
+    if (!(Field && Field->getParent()->isUnion() && CSM == CXXSpecialMemberKind::DefaultConstructor)) {
+      // P3074, default ctor and dtor are not deleted
+      DiagKind = !Decl ? 0 : 1;
+    }
+  }
   else if (SMOR.getKind() == Sema::SpecialMemberOverloadResult::Ambiguous)
     DiagKind = 2;
   else if (!isAccessible(Subobj, Decl))

@@ -4965,6 +4965,7 @@ static bool handleDefaultInitValue(QualType T, APValue &Result) {
     if (RD->isUnion()) {
       auto it = RD->field_begin();
       if (it != RD->field_end() /* && it's implicit-lifetime type */) {
+        // P3074: if it's a union, start the lifetime of the first member
         APValue Underlying;
         handleDefaultInitValue(it->getType(), Underlying);
         Result = APValue((const FieldDecl *)nullptr);
