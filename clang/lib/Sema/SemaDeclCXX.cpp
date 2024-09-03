@@ -9343,21 +9343,8 @@ bool SpecialMemberDeletionInfo::shouldDeleteForSubobjectCall(
     DiagKind = 3;
   else if (!IsDtorCallInCtor && Field && Field->getParent()->isUnion() &&
            !Decl->isTrivial()) {
-    // A member of a union must have a trivial corresponding special member.
-    // As a weird special case, a destructor call from a union's constructor
-    // must be accessible and non-deleted, but need not be trivial. Such a
-    // destructor is never actually called, but is semantically checked as
-    // if it were.
-    if (CSM == CXXSpecialMemberKind::DefaultConstructor) {
-      // [class.default.ctor]p2:
-      //   A defaulted default constructor for class X is defined as deleted if
-      //   - X is a union that has a variant member with a non-trivial default
-      //     constructor and no variant member of X has a default member
-      //     initializer
-      const auto *RD = cast<CXXRecordDecl>(Field->getParent());
-      if (!RD->hasInClassInitializer())
-        DiagKind = 4;
-    } else {
+    if (!(CSM == CXXSpecialMemberKind::DefaultConstructor || CSM == CXXSpecialMemberKind::Destructor)) {
+      // P3074, default ctor and dtor are not deleted
       DiagKind = 4;
     }
   }

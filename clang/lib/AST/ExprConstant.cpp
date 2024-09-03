@@ -4963,7 +4963,15 @@ static bool handleDefaultInitValue(QualType T, APValue &Result) {
       return false;
     }
     if (RD->isUnion()) {
-      Result = APValue((const FieldDecl *)nullptr);
+      auto it = RD->field_begin();
+      if (it != RD->field_end() /* && it's implicit-lifetime type */) {
+        APValue Underlying;
+        handleDefaultInitValue(it->getType(), Underlying);
+        Result = APValue((const FieldDecl *)nullptr);
+        Result.setUnion(*it, Underlying);
+      } else {
+        Result = APValue((const FieldDecl *)nullptr);
+      }
       return true;
     }
     Result = APValue(APValue::UninitStruct(), RD->getNumBases(),

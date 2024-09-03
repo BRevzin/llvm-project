@@ -1229,8 +1229,12 @@ void CXXRecordDecl::addedMember(Decl *D) {
         //    -- for all the non-static data members of its class that are of
         //       class type (or array thereof), each such class has a trivial
         //       default constructor.
-        if (!FieldRec->hasTrivialDefaultConstructor())
-          data().HasTrivialSpecialMembers &= ~SMF_DefaultConstructor;
+        if (!FieldRec->hasTrivialDefaultConstructor()) {
+          if (!isUnion()) {
+            // P3074
+            data().HasTrivialSpecialMembers &= ~SMF_DefaultConstructor;
+          }
+        }
 
         // C++0x [class.copy]p13:
         //   A copy/move constructor for class X is trivial if [...]
@@ -1267,8 +1271,12 @@ void CXXRecordDecl::addedMember(Decl *D) {
         if (!FieldRec->hasTrivialMoveAssignment())
           data().HasTrivialSpecialMembers &= ~SMF_MoveAssignment;
 
-        if (!FieldRec->hasTrivialDestructor())
-          data().HasTrivialSpecialMembers &= ~SMF_Destructor;
+        if (!FieldRec->hasTrivialDestructor()) {
+          if (!isUnion()) {
+            // P3074
+            data().HasTrivialSpecialMembers &= ~SMF_Destructor;
+          }
+        }
         if (!FieldRec->hasTrivialDestructorForCall())
           data().HasTrivialSpecialMembersForCall &= ~SMF_Destructor;
         if (!FieldRec->hasIrrelevantDestructor())
