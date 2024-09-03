@@ -9333,22 +9333,37 @@ bool SpecialMemberDeletionInfo::shouldDeleteForSubobjectCall(
   CXXMethodDecl *Decl = SMOR.getMethod();
   FieldDecl *Field = Subobj.dyn_cast<FieldDecl*>();
 
+  // P3074: default ctor and dtor for unions are not deleted, regardless of whether
+  // the underlying fields have non-trivial or deleted versions of those members
+  if (Field && Field->getParent()->isUnion() && (CSM == CXXSpecialMemberKind::DefaultConstructor
+                                              || CSM == CXXSpecialMemberKind::Destructor))
+    return false;
+
   int DiagKind = -1;
 
-  if (SMOR.getKind() == Sema::SpecialMemberOverloadResult::NoMemberOrDeleted) {
-    if (!(Field && Field->getParent()->isUnion() && CSM == CXXSpecialMemberKind::DefaultConstructor)) {
-      // P3074, default ctor for unions is not deleted
-      DiagKind = !Decl ? 0 : 1;
-    }
-  }
+  if (SMOR.getKind() == Sema::SpecialMemberOverloadResult::NoMemberOrDeleted)
+    DiagKind = !Decl ? 0 : 1;
   else if (SMOR.getKind() == Sema::SpecialMemberOverloadResult::Ambiguous)
     DiagKind = 2;
   else if (!isAccessible(Subobj, Decl))
     DiagKind = 3;
   else if (!IsDtorCallInCtor && Field && Field->getParent()->isUnion() &&
            !Decl->isTrivial()) {
-    if (!(CSM == CXXSpecialMemberKind::DefaultConstructor || CSM == CXXSpecialMemberKind::Destructor)) {
-      // P3074, default ctor and dtor for unions are not deleted
+    // A member of a union must have a trivial corresponding special member.
+    // As a weird special case, a destructor call from a union's constructor
+    // must be accessible and non-deleted, but need not be trivial. Such a
+    // destructor is never actually called, but is semantically checked as
+    // if it were.
+    if (CSM == CXXSpecialMemberKind::DefaultConstructor) {
+      // [class.default.ctor]p2:
+      //   A defaulted default constructor for class X is defined as deleted if
+      //   - X is a union that has a variant member with a non-trivial default
+      //     constructor and no variant member of X has a default member
+      //     initializer
+      const auto *RD = cast<CXXRecordDecl>(Field->getParent());
+      if (!RD->hasInClassInitializer())
+        DiagKind = 4;
+    } else {
       DiagKind = 4;
     }
   }
