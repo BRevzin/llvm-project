@@ -4963,15 +4963,13 @@ static bool handleDefaultInitValue(QualType T, APValue &Result) {
       return false;
     }
     if (RD->isUnion()) {
-      auto it = RD->field_begin();
-      if (it != RD->field_end() && it->getType().isImplicitLifetimeType()) {
+      Result = APValue((const FieldDecl *)nullptr);
+      auto It = RD->field_begin();
+      if (It != RD->field_end() && It->getType().isImplicitLifetimeType()) {
         // P3074: if it's a union, start the lifetime of the first member
         APValue Underlying;
-        handleDefaultInitValue(it->getType(), Underlying);
-        Result = APValue((const FieldDecl *)nullptr);
-        Result.setUnion(*it, Underlying);
-      } else {
-        Result = APValue((const FieldDecl *)nullptr);
+        handleDefaultInitValue(It->getType(), Underlying);
+        Result.setUnion(*It, Underlying);
       }
       return true;
     }
