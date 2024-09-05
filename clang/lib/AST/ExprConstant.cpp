@@ -4948,33 +4948,6 @@ static bool HandleBaseToDerivedCast(EvalInfo &Info, const CastExpr *E,
   return CastToDerivedClass(Info, E, Result, TargetType, NewEntriesSize);
 }
 
-static bool isImplicitLifetimeType(QualType T) {
-  // for now just copy the implementation from the type trait
-  QualType UnqualT = T->getCanonicalTypeUnqualified();
-  if (UnqualT->isScalarType())
-    return true;
-  if (UnqualT->isArrayType() || UnqualT->isVectorType())
-    return true;
-  const CXXRecordDecl *RD = UnqualT->getAsCXXRecordDecl();
-  if (!RD)
-    return false;
-
-  // [class.prop] p9
-  // A class S is an implicit-lifetime class if
-  //   - it is an aggregate whose destructor is not user-provided or
-  //   - it has at least one trivial eligible constructor and a trivial,
-  //     non-deleted destructor.
-  const CXXDestructorDecl *Dtor = RD->getDestructor();
-  if (UnqualT->isAggregateType())
-    if (Dtor && !Dtor->isUserProvided())
-      return true;
-  if (RD->hasTrivialDestructor() && (!Dtor || !Dtor->isDeleted()))
-    if (RD->hasTrivialDefaultConstructor() ||
-        RD->hasTrivialCopyConstructor() || RD->hasTrivialMoveConstructor())
-      return true;
-  return false;
-}
-
 /// Get the value to use for a default-initialized object of type T.
 /// Return false if it encounters something invalid.
 static bool handleDefaultInitValue(QualType T, APValue &Result) {
@@ -4991,7 +4964,7 @@ static bool handleDefaultInitValue(QualType T, APValue &Result) {
     }
     if (RD->isUnion()) {
       auto it = RD->field_begin();
-      if (it != RD->field_end() && isImplicitLifetimeType(it->getType())) {
+      if (it != RD->field_end() && it->getType().isImplicitLifetimeType()) {
         // P3074: if it's a union, start the lifetime of the first member
         APValue Underlying;
         handleDefaultInitValue(it->getType(), Underlying);

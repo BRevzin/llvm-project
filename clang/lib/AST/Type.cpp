@@ -2819,6 +2819,36 @@ bool QualType::isTriviallyRelocatableType(const ASTContext &Context) const {
   }
 }
 
+bool QualType::isImplicitLifetimeType() const {
+  // [basic.types.general] p9
+  // Scalar types, implicit-lifetime class types ([class.prop]),
+  // array types, and cv-qualified versions of these types
+  // are collectively called implicit-lifetime types.
+  QualType UnqualT = getTypePtr()->getCanonicalTypeUnqualified();
+  if (UnqualT->isScalarType())
+    return true;
+  if (UnqualT->isArrayType() || UnqualT->isVectorType())
+    return true;
+  const CXXRecordDecl *RD = UnqualT->getAsCXXRecordDecl();
+  if (!RD)
+    return false;
+
+  // [class.prop] p9
+  // A class S is an implicit-lifetime class if
+  //   - it is an aggregate whose destructor is not user-provided or
+  //   - it has at least one trivial eligible constructor and a trivial,
+  //     non-deleted destructor.
+  const CXXDestructorDecl *Dtor = RD->getDestructor();
+  if (UnqualT->isAggregateType())
+    if (Dtor && !Dtor->isUserProvided())
+      return true;
+  if (RD->hasTrivialDestructor() && (!Dtor || !Dtor->isDeleted()))
+    if (RD->hasTrivialDefaultConstructor() ||
+        RD->hasTrivialCopyConstructor() || RD->hasTrivialMoveConstructor())
+      return true;
+  return false;
+}
+
 bool QualType::isNonWeakInMRRWithObjCWeak(const ASTContext &Context) const {
   return !Context.getLangOpts().ObjCAutoRefCount &&
          Context.getLangOpts().ObjCWeak &&

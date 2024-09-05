@@ -1142,6 +1142,9 @@ public:
   /// Return true if this is a trivially relocatable type.
   bool isTriviallyRelocatableType(const ASTContext &Context) const;
 
+  /// Return true if this is an implicit-lifetime type
+  bool isImplicitLifetimeType() const;
+
   /// Returns true if it is a class and it might be dynamic.
   bool mayBeDynamicClass() const;
 
