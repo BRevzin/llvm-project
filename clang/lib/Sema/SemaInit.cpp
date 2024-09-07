@@ -2366,6 +2366,8 @@ void InitListChecker::CheckStructUnionTypes(
     return isa<FieldDecl>(D) || isa<RecordDecl>(D);
   });
   bool HasDesignatedInit = false;
+  bool DiagnosedMixedDesignator = false;
+  Expr* NonDesignatedInit = nullptr;
 
   llvm::SmallPtrSet<FieldDecl *, 4> InitializedFields;
 
@@ -2379,6 +2381,16 @@ void InitListChecker::CheckStructUnionTypes(
       // designator. Return immediately.
       if (!SubobjectIsDesignatorContext)
         return;
+
+      if (!DiagnosedMixedDesignator && NonDesignatedInit != nullptr) {
+        DiagnosedMixedDesignator = true;
+        if (!VerifyOnly) {
+          SemaRef.Diag(DIE->getBeginLoc(), diag::ext_designated_init_mixed)
+            << DIE->getSourceRange();
+          SemaRef.Diag(NonDesignatedInit->getBeginLoc(), diag::note_designated_init_mixed)
+            << NonDesignatedInit->getSourceRange();
+        }
+      }
 
       HasDesignatedInit = true;
 
@@ -2407,6 +2419,8 @@ void InitListChecker::CheckStructUnionTypes(
       InitializedSomething = true;
       continue;
     }
+
+    NonDesignatedInit = Init;
 
     // Check if this is an initializer of forms:
     //
