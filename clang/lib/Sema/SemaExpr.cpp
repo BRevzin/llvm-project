@@ -7122,7 +7122,7 @@ ExprResult
 Sema::ActOnInitList(SourceLocation LBraceLoc, MultiExprArg InitArgList,
                     SourceLocation RBraceLoc) {
   // Only produce each kind of designated initialization diagnostic once.
-  SourceLocation FirstDesignator;
+  DesignatedInitExpr* FirstDesignator = nullptr;
   bool DiagnosedArrayDesignator = false;
   bool DiagnosedNestedDesignator = false;
   bool DiagnosedMixedDesignator = false;
@@ -7131,8 +7131,8 @@ Sema::ActOnInitList(SourceLocation LBraceLoc, MultiExprArg InitArgList,
   // current language mode.
   for (unsigned I = 0, E = InitArgList.size(); I != E; ++I) {
     if (auto *DIE = dyn_cast<DesignatedInitExpr>(InitArgList[I])) {
-      if (FirstDesignator.isInvalid())
-        FirstDesignator = DIE->getBeginLoc();
+      if (not FirstDesignator)
+        FirstDesignator = DIE;
 
       if (!getLangOpts().CPlusPlus)
         break;
@@ -7151,35 +7151,33 @@ Sema::ActOnInitList(SourceLocation LBraceLoc, MultiExprArg InitArgList,
         }
       }
 
-      if (!DiagnosedMixedDesignator &&
-          !isa<DesignatedInitExpr>(InitArgList[0])) {
-        DiagnosedMixedDesignator = true;
-        Diag(DIE->getBeginLoc(), diag::ext_designated_init_mixed)
-          << DIE->getSourceRange();
-        Diag(InitArgList[0]->getBeginLoc(), diag::note_designated_init_mixed)
-          << InitArgList[0]->getSourceRange();
-      }
-    } else if (getLangOpts().CPlusPlus && !DiagnosedMixedDesignator &&
-               isa<DesignatedInitExpr>(InitArgList[0])) {
+      // if (!DiagnosedMixedDesignator &&
+      //     !isa<DesignatedInitExpr>(InitArgList[0])) {
+      //   DiagnosedMixedDesignator = true;
+      //   Diag(DIE->getBeginLoc(), diag::ext_designated_init_mixed)
+      //     << DIE->getSourceRange();
+      //   Diag(InitArgList[0]->getBeginLoc(), diag::note_designated_init_mixed)
+      //     << InitArgList[0]->getSourceRange();
+      // }
+    } else if (getLangOpts().CPlusPlus && !DiagnosedMixedDesignator && FirstDesignator) {
       DiagnosedMixedDesignator = true;
-      auto *DIE = cast<DesignatedInitExpr>(InitArgList[0]);
-      Diag(DIE->getBeginLoc(), diag::ext_designated_init_mixed)
-        << DIE->getSourceRange();
+      Diag(FirstDesignator->getBeginLoc(), diag::ext_designated_init_mixed)
+        << FirstDesignator->getSourceRange();
       Diag(InitArgList[I]->getBeginLoc(), diag::note_designated_init_mixed)
         << InitArgList[I]->getSourceRange();
     }
   }
 
-  if (FirstDesignator.isValid()) {
+  if (FirstDesignator) {
     // Only diagnose designated initiaization as a C++20 extension if we didn't
     // already diagnose use of (non-C++20) C99 designator syntax.
     if (getLangOpts().CPlusPlus && !DiagnosedArrayDesignator &&
         !DiagnosedNestedDesignator && !DiagnosedMixedDesignator) {
-      Diag(FirstDesignator, getLangOpts().CPlusPlus20
+      Diag(FirstDesignator->getBeginLoc(), getLangOpts().CPlusPlus20
                                 ? diag::warn_cxx17_compat_designated_init
                                 : diag::ext_cxx_designated_init);
     } else if (!getLangOpts().CPlusPlus && !getLangOpts().C99) {
-      Diag(FirstDesignator, diag::ext_designated_init);
+      Diag(FirstDesignator->getBeginLoc(), diag::ext_designated_init);
     }
   }
 
