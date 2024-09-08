@@ -2307,7 +2307,18 @@ void InitListChecker::CheckStructUnionTypes(
     auto DesignatorMatchesBase = [&](DesignatedInitExpr::Designator* D) {
       ValueDecl *VD = SemaRef.tryLookupUnambiguousFieldDecl(const_cast<RecordDecl*>(RD), D->getFieldName(), true);
       FieldDecl *FD = llvm::dyn_cast_if_present<FieldDecl>(VD);
-      return FD && FD->getParent() == Base.getType()->getAsCXXRecordDecl();
+      if (!FD) {
+        return false;
+      }
+
+      if (FD->getParent() == RD) {
+        // member of the derived type directly, so nope
+        return false;
+      }
+
+      CXXRecordDecl *Parent = dyn_cast<CXXRecordDecl>(FD->getParent());
+      CXXRecordDecl *CurBase = Base.getType()->getAsCXXRecordDecl();
+      return Parent == CurBase || CurBase->isDerivedFrom(Parent);
     };
 
     // p2287: nope

@@ -4268,19 +4268,21 @@ Sema::tryLookupUnambiguousFieldDecl(RecordDecl *ClassDecl,
   }
 
   if (!ND && Recursive) {
-      if (auto CXXClassDecl = dyn_cast<CXXRecordDecl>(ClassDecl)) {
-        for (auto& base : CXXClassDecl->bases()) {
-          ValueDecl *Cur = tryLookupUnambiguousFieldDecl(base.getType()->getAsCXXRecordDecl(), MemberOrBase, true);
-          if (Cur && ND) {
-            // we found this in two bases, so that's ambiguous
+    if (auto CXXClassDecl = dyn_cast<CXXRecordDecl>(ClassDecl)) {
+      for (auto& base : CXXClassDecl->bases()) {
+        ValueDecl *Cur = tryLookupUnambiguousFieldDecl(base.getType()->getAsCXXRecordDecl(), MemberOrBase, true);
+        if (Cur) {
+          if (ND) {
             return nullptr;
-          } else if (Cur && !base.getType()->isAggregateType()) {
+          } else if (!base.getType()->isAggregateType()) {
             // we found something through a non-aggregate
             return nullptr;
+          } else {
+            ND = Cur;
           }
-          ND = Cur;
         }
       }
+    }
   }
   return ND;
 }
