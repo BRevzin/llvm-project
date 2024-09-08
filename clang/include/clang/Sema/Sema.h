@@ -4817,7 +4817,8 @@ public:
   EnumDecl *getStdAlignValT() const;
 
   ValueDecl *tryLookupUnambiguousFieldDecl(RecordDecl *ClassDecl,
-                                           const IdentifierInfo *MemberOrBase);
+                                           const IdentifierInfo *MemberOrBase,
+                                           bool Recursive=false);
 
   enum class ComparisonCategoryUsage {
     /// The '<=>' operator was used in an expression and a builtin operator

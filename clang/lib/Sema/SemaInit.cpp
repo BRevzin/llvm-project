@@ -1435,7 +1435,6 @@ void InitListChecker::CheckSubElementType(const InitializedEntity &Entity,
                                           unsigned &StructuredIndex,
                                           bool DirectlyDesignated) {
   Expr *expr = IList->getInit(Index);
-
   if (ElemType->isReferenceType())
     return CheckReferenceType(Entity, IList, ElemType, Index,
                               StructuredList, StructuredIndex);
@@ -1564,7 +1563,6 @@ void InitListChecker::CheckSubElementType(const InitializedEntity &Entity,
   } else {
     assert((ElemType->isRecordType() || ElemType->isVectorType() ||
             ElemType->isOpenCLSpecificType()) && "Unexpected type");
-
     // C99 6.7.8p13:
     //
     //   The initializer for a structure or union object that has
@@ -2306,10 +2304,56 @@ void InitListChecker::CheckStructUnionTypes(
     auto &Base = *I;
     Expr *Init = Index < IList->getNumInits() ? IList->getInit(Index) : nullptr;
 
+    auto DesignatorMatchesBase = [&](DesignatedInitExpr::Designator* D) {
+      ValueDecl *VD = SemaRef.tryLookupUnambiguousFieldDecl(const_cast<RecordDecl*>(RD), D->getFieldName(), true);
+      FieldDecl *FD = llvm::dyn_cast_if_present<FieldDecl>(VD);
+      return FD && FD->getParent() == Base.getType()->getAsCXXRecordDecl();
+    };
+
+    // p2287: nope
     // Designated inits always initialize fields, so if we see one, all
     // remaining base classes have no explicit initializer.
-    if (isa_and_nonnull<DesignatedInitExpr>(Init))
-      Init = nullptr;
+    if (auto DIE = dyn_cast_if_present<DesignatedInitExpr>(Init)) {
+      if (!DesignatorMatchesBase(DIE->getDesignator(0))) {
+        // we're trying to initialize a base, but this designator either
+        // * refers to the derived type, or
+        // * is unknown/ambiguous
+        // either way, this will get handled later
+        Init = nullptr;
+      } else {
+        // we synthesize a new designated initializer list with all the members
+        // that are associated with this particular base class
+        InitializedEntity BaseEntity = InitializedEntity::InitializeBase(
+            SemaRef.Context, &Base, false, &Entity);
+
+        llvm::SmallVector<Expr*, 4> Synth = {Init};
+        for (++Index; Index < IList->getNumInits(); ++Index) {
+          auto Next = dyn_cast_if_present<DesignatedInitExpr>(IList->getInit(Index));
+          if (!Next) {
+            // this should always be true at this point
+            break;
+          }
+          if (!DesignatorMatchesBase(Next->getDesignator(0))) {
+            // stop when we hit a field that we can't look up in this base
+            break;
+          }
+          Synth.push_back(Next);
+        }
+
+        InitListExpr *E1 =
+          new (SemaRef.Context) InitListExpr(SemaRef.Context, IList->getLBraceLoc(), Synth, IList->getRBraceLoc());
+        llvm::SmallVector<Expr*, 4> Synth2 = {E1};
+        InitListExpr *E2 =
+          new (SemaRef.Context) InitListExpr(SemaRef.Context, IList->getLBraceLoc(), Synth2, IList->getRBraceLoc());
+        E1->setType(SemaRef.Context.VoidTy);
+        E2->setType(SemaRef.Context.VoidTy);
+        unsigned J = 0;
+
+        CheckSubElementType(BaseEntity, E2, Base.getType(), J,
+                            StructuredList, StructuredIndex);
+        continue;
+      }
+    }
 
     // C++ [over.match.class.deduct]p1.6:
     //   each non-trailing aggregate element that is a pack expansion is assumed
