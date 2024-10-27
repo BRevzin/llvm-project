@@ -617,6 +617,7 @@ Decl *Parser::ParseUsingDirective(DeclaratorContext Context,
 bool Parser::ParseUsingDeclarator(DeclaratorContext Context,
                                   UsingDeclarator &D) {
   D.clear();
+  D.SS = D.Outer;
 
   // Ignore optional 'typename'.
   // FIXME: This is wrong; we should parse this as a typename-specifier.
@@ -641,6 +642,28 @@ bool Parser::ParseUsingDeclarator(DeclaratorContext Context,
     return true;
   if (D.SS.isInvalid())
     return true;
+
+  if (Tok.is(tok::l_brace)) {
+    if (D.Outer.isValid()) {
+      return true;
+    }
+    D.Outer = D.SS;
+
+    // Eat the {
+    ConsumeBrace();
+    if (ParseOptionalCXXScopeSpecifier(D.SS, /*ObjectType=*/nullptr,
+                                      /*ObjectHasErrors=*/false,
+                                      /*EnteringContext=*/false,
+                                      /*MayBePseudoDtor=*/nullptr,
+                                      /*IsTypename=*/false,
+                                      /*LastII=*/&LastII,
+                                      /*OnlyNamespace=*/false,
+                                      /*InUsingDeclaration=*/true))
+
+      return true;
+    if (D.SS.isInvalid())
+      return true;
+  }
 
   // Parse the unqualified-id. We allow parsing of both constructor and
   // destructor names and allow the action module to diagnose any semantic
@@ -896,6 +919,11 @@ Parser::DeclGroupPtrTy Parser::ParseUsingDeclaration(
                                                D.EllipsisLoc, Attrs);
       if (UD)
         DeclsInGroup.push_back(UD);
+    }
+
+    if (D.Outer.isValid() && Tok.is(tok::r_brace)) {
+      D.Outer.clear();
+      ConsumeBrace();
     }
 
     if (!TryConsumeToken(tok::comma))
