@@ -617,7 +617,9 @@ Decl *Parser::ParseUsingDirective(DeclaratorContext Context,
 bool Parser::ParseUsingDeclarator(DeclaratorContext Context,
                                   UsingDeclarator &D) {
   D.clear();
-  D.SS = D.Outer;
+  if (!D.Outer.empty()) {
+    D.SS = D.Outer.back();
+  }
 
   // Ignore optional 'typename'.
   // FIXME: This is wrong; we should parse this as a typename-specifier.
@@ -630,27 +632,7 @@ bool Parser::ParseUsingDeclarator(DeclaratorContext Context,
 
   // Parse nested-name-specifier.
   const IdentifierInfo *LastII = nullptr;
-  if (ParseOptionalCXXScopeSpecifier(D.SS, /*ObjectType=*/nullptr,
-                                     /*ObjectHasErrors=*/false,
-                                     /*EnteringContext=*/false,
-                                     /*MayBePseudoDtor=*/nullptr,
-                                     /*IsTypename=*/false,
-                                     /*LastII=*/&LastII,
-                                     /*OnlyNamespace=*/false,
-                                     /*InUsingDeclaration=*/true))
-
-    return true;
-  if (D.SS.isInvalid())
-    return true;
-
-  if (Tok.is(tok::l_brace)) {
-    if (D.Outer.isValid()) {
-      return true;
-    }
-    D.Outer = D.SS;
-
-    // Eat the {
-    ConsumeBrace();
+  while (true) {
     if (ParseOptionalCXXScopeSpecifier(D.SS, /*ObjectType=*/nullptr,
                                       /*ObjectHasErrors=*/false,
                                       /*EnteringContext=*/false,
@@ -663,6 +645,14 @@ bool Parser::ParseUsingDeclarator(DeclaratorContext Context,
       return true;
     if (D.SS.isInvalid())
       return true;
+
+    if (Tok.is(tok::l_brace)) {
+      D.Outer.push_back(D.SS);
+      // Eat the {
+      ConsumeBrace();
+    } else {
+      break;
+    }
   }
 
   // Parse the unqualified-id. We allow parsing of both constructor and
@@ -921,8 +911,8 @@ Parser::DeclGroupPtrTy Parser::ParseUsingDeclaration(
         DeclsInGroup.push_back(UD);
     }
 
-    if (D.Outer.isValid() && Tok.is(tok::r_brace)) {
-      D.Outer.clear();
+    while (!D.Outer.empty() && Tok.is(tok::r_brace)) {
+      D.Outer.pop_back();
       ConsumeBrace();
     }
 
