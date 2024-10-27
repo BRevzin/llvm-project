@@ -3302,6 +3302,7 @@ private:
 
   struct UsingDeclarator {
     SourceLocation TypenameLoc;
+    CXXScopeSpec Outer;
     CXXScopeSpec SS;
     UnqualifiedId Name;
     SourceLocation EllipsisLoc;
