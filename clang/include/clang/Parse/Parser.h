@@ -3302,7 +3302,7 @@ private:
 
   struct UsingDeclarator {
     SourceLocation TypenameLoc;
-    CXXScopeSpec Outer;
+    llvm::SmallVector<CXXScopeSpec, 4> Outer;
     CXXScopeSpec SS;
     UnqualifiedId Name;
     SourceLocation EllipsisLoc;
